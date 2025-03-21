@@ -3,8 +3,8 @@ import { ImageUploader, Notebook, PreviewMode, utility } from 'crossnote';
 import { tmpdir } from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { Uri } from 'vscode';
-import { getMPEConfig } from './config';
+import { Uri, workspace } from 'vscode';
+import { getMPEConfig, MarkdownPreviewEnhancedConfig } from './config';
 import NotebooksManager from './notebooks-manager';
 import {
   getCrossnoteVersion,
@@ -15,6 +15,7 @@ import {
   isVSCodeWebExtension,
   isVSCodewebExtensionDevMode,
 } from './utils';
+import { GoogleTranslationService } from './translation-service';
 
 if (isVSCodeWebExtension()) {
   console.debug('* Using crossnote version: ', getCrossnoteVersion());
@@ -119,8 +120,11 @@ export class PreviewProvider {
    */
   private jsAndCssFilesMaps: { [key: string]: string[] } = {};
 
-  public constructor() {
-    // Please use `init` method to initialize this class.
+  private translationService: GoogleTranslationService | null = null;
+  private config: MarkdownPreviewEnhancedConfig;
+
+  private constructor() {
+    this.config = MarkdownPreviewEnhancedConfig.getCurrentConfig();
   }
 
   private async init(
@@ -131,6 +135,7 @@ export class PreviewProvider {
     this.notebook = await this.getNotebooksManager().getNotebook(
       workspaceFolderUri,
     );
+    this.initTranslationService();
     return this;
   }
 
@@ -269,7 +274,7 @@ export class PreviewProvider {
   /**
    * TODO: Free memory
    */
-  public destroyEngine(sourceUri: vscode.Uri) {}
+  public destroyEngine(sourceUri: vscode.Uri) { }
 
   private getEngine(sourceUri: Uri) {
     return this.notebook.getNoteMarkdownEngine(sourceUri.fsPath);
@@ -298,8 +303,8 @@ export class PreviewProvider {
     ) {
       const oldResourceRoot = PreviewProvider.singlePreviewPanelSourceUriTarget
         ? getWorkspaceFolderUri(
-            PreviewProvider.singlePreviewPanelSourceUriTarget,
-          )
+          PreviewProvider.singlePreviewPanelSourceUriTarget,
+        )
         : undefined;
       const newResourceRoot = getWorkspaceFolderUri(sourceUri);
       if (oldResourceRoot?.fsPath !== newResourceRoot.fsPath) {
@@ -467,7 +472,7 @@ export class PreviewProvider {
 
   public async postMessageToPreview(
     sourceUri: Uri,
-    message: { command: string; [key: string]: any }, // TODO: Define a type for message.
+    message: { command: string;[key: string]: any }, // TODO: Define a type for message.
   ) {
     const previews = this.getPreviews(sourceUri);
     if (previews) {
@@ -503,10 +508,9 @@ export class PreviewProvider {
     }
   }
 
-  public updateMarkdown(sourceUri: Uri, triggeredBySave?: boolean) {
+  public async updateMarkdown(sourceUri: Uri, triggeredBySave?: boolean) {
     const engine = this.getEngine(sourceUri);
     const previews = this.getPreviews(sourceUri);
-    // console.log('updateMarkdown: ', previews?.length);
     if (!previews || !previews.length) {
       return;
     }
@@ -527,10 +531,11 @@ export class PreviewProvider {
       if (!previews || !previews.length) {
         return;
       }
+
       for (let i = 0; i < previews.length; i++) {
         try {
           const preview = previews[0];
-          const {
+          let {
             html,
             tocHTML,
             JSAndCssFiles,
@@ -542,10 +547,19 @@ export class PreviewProvider {
             triggeredBySave,
             vscodePreviewPanel: preview,
           });
+
+          // 번역 적용
+          if (this.config.enableTranslation) {
+            html = await this.getTranslatedContent(html);
+            if (tocHTML) {
+              tocHTML = await this.getTranslatedContent(tocHTML);
+            }
+          }
+
           // check JSAndCssFiles
           if (
             JSON.stringify(JSAndCssFiles) !==
-              JSON.stringify(this.jsAndCssFilesMaps[sourceUri.fsPath] ?? []) ||
+            JSON.stringify(this.jsAndCssFilesMaps[sourceUri.fsPath] ?? []) ||
             yamlConfig['isPresentationMode']
           ) {
             this.jsAndCssFilesMaps[sourceUri.fsPath] = JSAndCssFiles;
@@ -563,21 +577,18 @@ export class PreviewProvider {
               id: yamlConfig.id || '',
               class:
                 (yamlConfig.class || '') +
-                ` ${
-                  this.getNotebooksManager().systemColorScheme === 'dark'
-                    ? 'system-dark'
-                    : 'system-ligtht'
-                } ${
-                  this.getNotebooksManager().getEditorColorScheme() === 'dark'
-                    ? 'editor-dark'
-                    : 'editor-light'
+                ` ${this.getNotebooksManager().systemColorScheme === 'dark'
+                  ? 'system-dark'
+                  : 'system-ligtht'
+                } ${this.getNotebooksManager().getEditorColorScheme() === 'dark'
+                  ? 'editor-dark'
+                  : 'editor-light'
                 } ${isVSCodeWebExtension() ? 'vscode-web-extension' : ''}`,
             });
           }
           break;
         } catch (error) {
           if (i === previews.length - 1) {
-            // This is the
             vscode.window.showErrorMessage(error.toString());
           } else {
             continue;
@@ -814,6 +825,68 @@ export class PreviewProvider {
       return await this.postMessageToPreview(sourceUri, {
         command: 'openImageHelper',
       });
+    }
+  }
+
+  private initTranslationService() {
+    if (this.config.enableTranslation && this.config.translationApiKey) {
+      this.translationService = new GoogleTranslationService(this.config.translationApiKey);
+    }
+  }
+
+  private async getTranslatedContent(html: string): Promise<string> {
+    if (!this.config.enableTranslation || !this.translationService) {
+      return html;
+    }
+
+    try {
+      // HTML 태그를 보존하면서 텍스트만 번역
+      const textNodes = html.match(/(?<=>)[^<>]+(?=<)/g) || [];
+      let translatedHtml = html;
+
+      for (const text of textNodes) {
+        if (text.trim()) {
+          const translatedText = await this.translationService.translate(
+            text,
+            this.config.targetLanguage
+          );
+          translatedHtml = translatedHtml.replace(text, translatedText);
+        }
+      }
+
+      return translatedHtml;
+    } catch (error) {
+      console.error('Translation error:', error);
+      return html;
+    }
+  }
+
+  public async provideContent(): Promise<string> {
+    // ... existing code ...
+
+    let html = await this.parser.render(markdown);
+
+    if (this.config.enableTranslation) {
+      this.initTranslationService();
+      html = await this.getTranslatedContent(html);
+    }
+
+    return html;
+  }
+
+  // 번역 토글 명령어 처리
+  private async handleToggleTranslation() {
+    const config = workspace.getConfiguration('markdown-preview-enhanced');
+    await config.update('enableTranslation', !this.config.enableTranslation, true);
+    this.config = MarkdownPreviewEnhancedConfig.getCurrentConfig(); // 설정 업데이트 후 config 다시 로드
+    this.initTranslationService();
+    await this.refreshAllPreviews();
+  }
+
+  // 메시지 핸들러에 토글 명령어 추가
+  private async handleMessage(message: any) {
+    if (message.command === 'toggleTranslation') {
+      await this.handleToggleTranslation();
     }
   }
 }

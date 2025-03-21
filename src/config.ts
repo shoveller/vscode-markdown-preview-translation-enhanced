@@ -14,7 +14,6 @@ import {
   WikiLinkTargetFileNameChangeCase,
   getDefaultNotebookConfig,
 } from 'crossnote';
-import { JsonObject } from 'type-fest';
 import * as vscode from 'vscode';
 import { isVSCodeWebExtension } from './utils';
 
@@ -36,11 +35,49 @@ type VSCodeMPEConfigKey =
   | 'qiniuBucket'
   | 'qiniuDomain'
   | 'qiniuSecretKey'
-  | 'scrollSync';
+  | 'scrollSync'
+  | 'enableTranslation'
+  | 'targetLanguage'
+  | 'translationProvider'
+  | 'translationApiKey';
 
 type ConfigKey = keyof NotebookConfig | VSCodeMPEConfigKey;
 
-export class MarkdownPreviewEnhancedConfig implements NotebookConfig {
+export interface MarkdownPreviewEnhancedConfig extends Omit<NotebookConfig, 'mathjaxConfig'> {
+  mathjaxConfig: { [key: string]: any };
+  // Translation settings
+  enableTranslation: boolean;
+  targetLanguage: string;
+  translationProvider: 'google' | 'deepl';
+  translationApiKey: string;
+  isEqualTo(otherConfig: MarkdownPreviewEnhancedConfig): boolean;
+}
+
+export function getDefaultConfig(): MarkdownPreviewEnhancedConfig {
+  const defaultConfig = getDefaultNotebookConfig();
+  const config = {
+    ...defaultConfig,
+    mathjaxConfig: {},
+    configPath: '',
+    automaticallyShowPreviewOfMarkdownBeingEdited: false,
+    hideDefaultVSCodeMarkdownPreviewButtons: true,
+    imageUploader: 'imgur' as ImageUploader,
+    liveUpdate: true,
+    previewColorScheme: PreviewColorScheme.selectedPreviewTheme,
+    previewMode: PreviewMode.SinglePreview,
+    scrollSync: true,
+    enableTranslation: false,
+    targetLanguage: 'ko',
+    translationProvider: 'google' as const,
+    translationApiKey: '',
+    isEqualTo(otherConfig: MarkdownPreviewEnhancedConfig) {
+      return JSON.stringify(this) === JSON.stringify(otherConfig);
+    }
+  };
+  return config;
+}
+
+export class MarkdownPreviewEnhancedConfig implements Omit<NotebookConfig, 'mathjaxConfig'> {
   public static getCurrentConfig() {
     return new MarkdownPreviewEnhancedConfig();
   }
@@ -96,7 +133,6 @@ export class MarkdownPreviewEnhancedConfig implements NotebookConfig {
   public readonly includeInHeader: string;
   public readonly globalCss: string;
   public readonly mermaidConfig: MermaidConfig;
-  public readonly mathjaxConfig: JsonObject;
   public readonly katexConfig: KatexOptions;
   public readonly parserConfig: ParserConfig;
   public readonly isVSCode: boolean = true;
@@ -110,6 +146,12 @@ export class MarkdownPreviewEnhancedConfig implements NotebookConfig {
   public readonly previewMode: PreviewMode;
   public readonly scrollSync: boolean;
 
+  // Translation settings
+  public enableTranslation: boolean;
+  public targetLanguage: string;
+  public translationProvider: 'google' | 'deepl';
+  public translationApiKey: string;
+
   private constructor() {
     const defaultConfig = getDefaultNotebookConfig();
 
@@ -120,7 +162,7 @@ export class MarkdownPreviewEnhancedConfig implements NotebookConfig {
     this.usePandocParser = isVSCodeWebExtension()
       ? false // pandoc is not supported in web extension
       : getMPEConfig<boolean>('usePandocParser') ??
-        defaultConfig.usePandocParser;
+      defaultConfig.usePandocParser;
     this.breakOnSingleNewLine =
       getMPEConfig<boolean>('breakOnSingleNewLine') ??
       defaultConfig.breakOnSingleNewLine;
@@ -258,6 +300,12 @@ export class MarkdownPreviewEnhancedConfig implements NotebookConfig {
       getMPEConfig<WikiLinkTargetFileNameChangeCase>(
         'wikiLinkTargetFileNameChangeCase',
       ) ?? defaultConfig.wikiLinkTargetFileNameChangeCase;
+
+    // Translation settings
+    this.enableTranslation = getMPEConfig<boolean>('enableTranslation') ?? false;
+    this.targetLanguage = getMPEConfig<string>('targetLanguage') ?? 'ko';
+    this.translationProvider = getMPEConfig<('google' | 'deepl')>('translationProvider') ?? 'google';
+    this.translationApiKey = getMPEConfig<string>('translationApiKey') ?? '';
   }
 
   public isEqualTo(otherConfig: MarkdownPreviewEnhancedConfig) {

@@ -600,6 +600,30 @@
           "description": "Enable this option will hide unnecessary UI elements in preview unless your mouse is over it.",
           "default": true,
           "type": "boolean"
+        },
+        "markdown-preview-enhanced.enableTranslation": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable translation feature in markdown preview"
+        },
+        "markdown-preview-enhanced.targetLanguage": {
+          "type": "string",
+          "default": "ko",
+          "description": "Target language for translation (e.g. ko, ja, zh)"
+        },
+        "markdown-preview-enhanced.translationProvider": {
+          "type": "string",
+          "enum": [
+            "google",
+            "deepl"
+          ],
+          "default": "google",
+          "description": "Translation service provider"
+        },
+        "markdown-preview-enhanced.translationApiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for translation service"
         }
       }
     },
@@ -681,7 +705,8 @@
     "@types/vfile": "^3.0.2",
     "async-mutex": "^0.4.0",
     "crossnote": "^0.9.14",
-    "crypto-js": "^4.2.0"
+    "crypto-js": "^4.2.0",
+    "node-fetch": "^2.7.0"
   },
   "devDependencies": {
     "@types/cheerio": "0.22.11",
