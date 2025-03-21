@@ -43,7 +43,8 @@ type VSCodeMPEConfigKey =
 
 type ConfigKey = keyof NotebookConfig | VSCodeMPEConfigKey;
 
-export interface MarkdownPreviewEnhancedConfig extends Omit<NotebookConfig, 'mathjaxConfig'> {
+export interface MarkdownPreviewEnhancedConfig
+  extends Omit<NotebookConfig, 'mathjaxConfig'> {
   mathjaxConfig: { [key: string]: any };
   // Translation settings
   enableTranslation: boolean;
@@ -72,12 +73,13 @@ export function getDefaultConfig(): MarkdownPreviewEnhancedConfig {
     translationApiKey: '',
     isEqualTo(otherConfig: MarkdownPreviewEnhancedConfig) {
       return JSON.stringify(this) === JSON.stringify(otherConfig);
-    }
+    },
   };
   return config;
 }
 
-export class MarkdownPreviewEnhancedConfig implements Omit<NotebookConfig, 'mathjaxConfig'> {
+export class MarkdownPreviewEnhancedConfig
+  implements Omit<NotebookConfig, 'mathjaxConfig'> {
   public static getCurrentConfig() {
     return new MarkdownPreviewEnhancedConfig();
   }
@@ -162,7 +164,7 @@ export class MarkdownPreviewEnhancedConfig implements Omit<NotebookConfig, 'math
     this.usePandocParser = isVSCodeWebExtension()
       ? false // pandoc is not supported in web extension
       : getMPEConfig<boolean>('usePandocParser') ??
-      defaultConfig.usePandocParser;
+        defaultConfig.usePandocParser;
     this.breakOnSingleNewLine =
       getMPEConfig<boolean>('breakOnSingleNewLine') ??
       defaultConfig.breakOnSingleNewLine;
@@ -302,9 +304,11 @@ export class MarkdownPreviewEnhancedConfig implements Omit<NotebookConfig, 'math
       ) ?? defaultConfig.wikiLinkTargetFileNameChangeCase;
 
     // Translation settings
-    this.enableTranslation = getMPEConfig<boolean>('enableTranslation') ?? false;
+    this.enableTranslation =
+      getMPEConfig<boolean>('enableTranslation') ?? false;
     this.targetLanguage = getMPEConfig<string>('targetLanguage') ?? 'ko';
-    this.translationProvider = getMPEConfig<('google' | 'deepl')>('translationProvider') ?? 'google';
+    this.translationProvider =
+      getMPEConfig<'google' | 'deepl'>('translationProvider') ?? 'google';
     this.translationApiKey = getMPEConfig<string>('translationApiKey') ?? '';
   }
 

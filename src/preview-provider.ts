@@ -274,7 +274,7 @@ export class PreviewProvider {
   /**
    * TODO: Free memory
    */
-  public destroyEngine(sourceUri: vscode.Uri) { }
+  public destroyEngine(sourceUri: vscode.Uri) {}
 
   private getEngine(sourceUri: Uri) {
     return this.notebook.getNoteMarkdownEngine(sourceUri.fsPath);
@@ -303,8 +303,8 @@ export class PreviewProvider {
     ) {
       const oldResourceRoot = PreviewProvider.singlePreviewPanelSourceUriTarget
         ? getWorkspaceFolderUri(
-          PreviewProvider.singlePreviewPanelSourceUriTarget,
-        )
+            PreviewProvider.singlePreviewPanelSourceUriTarget,
+          )
         : undefined;
       const newResourceRoot = getWorkspaceFolderUri(sourceUri);
       if (oldResourceRoot?.fsPath !== newResourceRoot.fsPath) {
@@ -472,7 +472,7 @@ export class PreviewProvider {
 
   public async postMessageToPreview(
     sourceUri: Uri,
-    message: { command: string;[key: string]: any }, // TODO: Define a type for message.
+    message: { command: string; [key: string]: any }, // TODO: Define a type for message.
   ) {
     const previews = this.getPreviews(sourceUri);
     if (previews) {
@@ -559,7 +559,7 @@ export class PreviewProvider {
           // check JSAndCssFiles
           if (
             JSON.stringify(JSAndCssFiles) !==
-            JSON.stringify(this.jsAndCssFilesMaps[sourceUri.fsPath] ?? []) ||
+              JSON.stringify(this.jsAndCssFilesMaps[sourceUri.fsPath] ?? []) ||
             yamlConfig['isPresentationMode']
           ) {
             this.jsAndCssFilesMaps[sourceUri.fsPath] = JSAndCssFiles;
@@ -577,12 +577,14 @@ export class PreviewProvider {
               id: yamlConfig.id || '',
               class:
                 (yamlConfig.class || '') +
-                ` ${this.getNotebooksManager().systemColorScheme === 'dark'
-                  ? 'system-dark'
-                  : 'system-ligtht'
-                } ${this.getNotebooksManager().getEditorColorScheme() === 'dark'
-                  ? 'editor-dark'
-                  : 'editor-light'
+                ` ${
+                  this.getNotebooksManager().systemColorScheme === 'dark'
+                    ? 'system-dark'
+                    : 'system-ligtht'
+                } ${
+                  this.getNotebooksManager().getEditorColorScheme() === 'dark'
+                    ? 'editor-dark'
+                    : 'editor-light'
                 } ${isVSCodeWebExtension() ? 'vscode-web-extension' : ''}`,
             });
           }
@@ -830,7 +832,9 @@ export class PreviewProvider {
 
   private initTranslationService() {
     if (this.config.enableTranslation && this.config.translationApiKey) {
-      this.translationService = new GoogleTranslationService(this.config.translationApiKey);
+      this.translationService = new GoogleTranslationService(
+        this.config.translationApiKey,
+      );
     }
   }
 
@@ -848,7 +852,7 @@ export class PreviewProvider {
         if (text.trim()) {
           const translatedText = await this.translationService.translate(
             text,
-            this.config.targetLanguage
+            this.config.targetLanguage,
           );
           translatedHtml = translatedHtml.replace(text, translatedText);
         }
@@ -877,7 +881,11 @@ export class PreviewProvider {
   // 번역 토글 명령어 처리
   private async handleToggleTranslation() {
     const config = workspace.getConfiguration('markdown-preview-enhanced');
-    await config.update('enableTranslation', !this.config.enableTranslation, true);
+    await config.update(
+      'enableTranslation',
+      !this.config.enableTranslation,
+      true,
+    );
     this.config = MarkdownPreviewEnhancedConfig.getCurrentConfig(); // 설정 업데이트 후 config 다시 로드
     this.initTranslationService();
     await this.refreshAllPreviews();
